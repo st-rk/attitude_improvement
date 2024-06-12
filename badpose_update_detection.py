@@ -23,7 +23,9 @@ prev_posture_state = None
 # Webカメラ入力の場合：
 cap = cv2.VideoCapture(0)
 fps = cap.get(cv2.CAP_PROP_FPS)
-bad_pose_frame_counter = 0
+input_wait_time = 1 # 入力を何ms待つか
+bad_posture_frame_counter = 0
+one_frame_second = 1/fps + input_wait_time/1000
 
 with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
     while cap.isOpened():
@@ -110,12 +112,15 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                     mixer.music.play()
 
                 prev_posture_state = current_posture_state
+        
+        if current_posture_state['is_hunched'] and current_posture_state['is_head_forward']:
+            bad_posture_frame_counter = bad_posture_frame_counter + 1
 
         cv2.imshow('MediaPipe Pose', frame)
-        k = cv2.waitKey(1)    # 1ms入力を待つ
+        k = cv2.waitKey(input_wait_time)
         if k == ord('q'):
             break
 
 cap.release()
 cv2.destroyAllWindows()
-print("a")
+print(f"猫背で首が前に出ていた時間 : {bad_posture_frame_counter*one_frame_second}s")
