@@ -23,9 +23,9 @@ prev_posture_state = None
 # Webカメラ入力の場合：
 cap = cv2.VideoCapture(0)
 fps = cap.get(cv2.CAP_PROP_FPS)
-input_wait_time = 1 # 入力を何ms待つか
-bad_posture_frame_counter = 0
-one_frame_second = 1/fps + input_wait_time/1000
+input_wait_time = 1                             # 入力を何ms待つか
+bad_posture_frame_counter = 0                   # 姿勢の悪かったフレームの数
+one_frame_second = 1/fps + input_wait_time/1000 # 1フレームあたりの時間/s
 
 with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
     while cap.isOpened():
