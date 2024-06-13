@@ -24,6 +24,7 @@ prev_posture_state = None
 cap = cv2.VideoCapture(0)
 fps = cap.get(cv2.CAP_PROP_FPS)
 input_wait_time = 1                             # 入力を何ms待つか
+good_posture_frame_counter = 0                   # 姿勢の良かったフレームの数
 bad_posture_frame_counter = 0                   # 姿勢の悪かったフレームの数
 one_frame_second = 1/fps + input_wait_time/1000 # 1フレームあたりの時間/s
 
@@ -87,25 +88,21 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             angle_shoulder_hip = calculate_angle(shoulder_to_hip, vertical)
             angle_shoulder_nose = calculate_angle(shoulder_to_nose, vertical)
 
-            # 猫背と首の前方突出の判定
+            # 猫背の判定
+            # 猫背の角度を設定
             current_posture_state = {
                 'is_hunched': angle_shoulder_hip > 30,
-                'is_head_forward': angle_shoulder_nose > 30
             }
 
             # 状態が変化した場合のみ出力
             if current_posture_state != prev_posture_state:
                 if current_posture_state['is_hunched']:
                     print("猫背です")
-                if current_posture_state['is_head_forward']:
-                    print("首が前に出ています")
-                if current_posture_state['is_hunched'] and current_posture_state['is_head_forward']:
-                    print("猫背で首が前に出ています")
                     mixer.init()
                     mixer.music.load(sound_of_bad_posture)
                     mixer.music.play()
                     
-                if not current_posture_state['is_hunched'] and not current_posture_state['is_head_forward']:
+                if not current_posture_state['is_hunched']:
                     print("良い姿勢です")
                     mixer.init()
                     mixer.music.load(sound_of_good_posture)
@@ -113,8 +110,28 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
 
                 prev_posture_state = current_posture_state
         
-        if current_posture_state['is_hunched'] and current_posture_state['is_head_forward']:
+        # 姿勢が良かった時間
+        if  not current_posture_state['is_hunched']:
+            good_posture_frame_counter = good_posture_frame_counter + 1
+            
+        # 姿勢が悪かった時間
+        if current_posture_state['is_hunched']:
             bad_posture_frame_counter = bad_posture_frame_counter + 1
+            
+        # 姿勢が良かった時間の割合(%)
+        good_posture_ratio = 0
+        
+        total_frames = good_posture_frame_counter + bad_posture_frame_counter
+        if total_frames > 0:
+            good_posture_ratio = (good_posture_frame_counter / total_frames) * 100
+        else:
+            good_posture_ratio = 0
+            
+        # 秒数を分に変換する関数
+        def convert_minutes(seconds):
+            minutes = seconds // 60
+            remaining_seconds = seconds % 60
+            return minutes, remaining_seconds
 
         cv2.imshow('MediaPipe Pose', frame)
         k = cv2.waitKey(input_wait_time)
@@ -123,4 +140,16 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
 
 cap.release()
 cv2.destroyAllWindows()
-print(f"猫背で首が前に出ていた時間 : {bad_posture_frame_counter*one_frame_second}s")
+if good_posture_frame_counter*one_frame_second >= 60:
+    good_posture_minutes, good_posture_seconds = convert_minutes(good_posture_frame_counter * one_frame_second)
+    print(f"姿勢が良かった時間 : {good_posture_minutes:.0f}分 {good_posture_seconds:.0f}秒")
+else:
+    print(f"姿勢が良かった時間 : {good_posture_frame_counter*one_frame_second:.0f}秒")
+    
+if bad_posture_frame_counter*one_frame_second >= 60:
+    bad_posture_minutes, bad_posture_seconds = convert_minutes(bad_posture_frame_counter * one_frame_second)
+    print(f"姿勢が悪かった時間 : {bad_posture_minutes:.0f}分 {bad_posture_seconds:.0f}秒")
+else:
+    print(f"姿勢が悪かった時間 : {bad_posture_frame_counter*one_frame_second:.0f}秒")
+
+print(f"姿勢が良かった時間の割合 : {good_posture_ratio:.0f}%")
